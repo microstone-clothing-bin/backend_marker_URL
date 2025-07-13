@@ -36,5 +36,5 @@ out/
 ### VS Code ###
 .vscode/
 
-### config.js에 숨은 API KEY ###
-docs/config.js
+# 숨겨진 API KEY
+src/main/resources/static/config.js

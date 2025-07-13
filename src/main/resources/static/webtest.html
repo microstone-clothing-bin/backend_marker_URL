@@ -5,10 +5,10 @@
     <title>의류 수거함 클러스터링</title>
 
     <!-- config.js에서 API Key 불러오기 -->
-    <script src="docs/config.js"></script>
+    <script src="config.js"></script>
     <script>
         const script = document.createElement('script');
-        script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_API_KEY}&callback=CALLBACK_FUNCTION`;
+        script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_API_KEY}&callback=initMap`;
         script.async = true;
         document.head.appendChild(script);
     </script>
@@ -28,114 +28,116 @@
 <div id="map"></div>
 
 <script>
-    const map = new naver.maps.Map("map", {
-        center: new naver.maps.LatLng(37.6, 127.1),
-        zoom: 11,
-        zoomControl: true,
-        zoomControlOptions: {
-            position: naver.maps.Position.TOP_LEFT,
-            style: naver.maps.ZoomControlStyle.SMALL
-        }
-    });
-
-    let markers = [];
-    let clusterer = null;
-    let dataLoaded = false;
-
-    const clusterStyle = {
-        content: `
-      <div style="
-        background-color: #2ecc71;
-        color: white;
-        font-size: 13px;
-        font-weight: bold;
-        border-radius: 50%;
-        width: 36px;
-        height: 36px;
-        line-height: 36px;
-        text-align: center;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        cursor: pointer;">
-      </div>`,
-        size: new naver.maps.Size(36, 36),
-        anchor: new naver.maps.Point(18, 18)
-    };
-
-    function makeClusterer() {
-        return new MarkerClustering({
-            minClusterSize: 2,
-            maxZoom: 15,
-            map: map,
-            markers: markers,
-            disableClickZoom: false,
-            gridSize: 120,
-            icons: [clusterStyle],
-            indexGenerator: [10, 100, 200, 500, 1000],
-            stylingFunction: function (clusterMarker, count) {
-                clusterMarker.getElement().querySelector('div').textContent = count;
+    function initMap() {
+        const map = new naver.maps.Map("map", {
+            center: new naver.maps.LatLng(37.6, 127.1),
+            zoom: 11,
+            zoomControl: true,
+            zoomControlOptions: {
+                position: naver.maps.Position.TOP_LEFT,
+                style: naver.maps.ZoomControlStyle.SMALL
             }
         });
-    }
 
-    function loadMarkers() {
-        if (dataLoaded) {
-            if (clusterer) {
-                clusterer.setMap(map);
-            } else {
-                clusterer = makeClusterer();
+        let markers = [];
+        let clusterer = null;
+        let dataLoaded = false;
+
+        const clusterStyle = {
+            content: `
+            <div style="
+                background-color: #2ecc71;
+                color: white;
+                font-size: 13px;
+                font-weight: bold;
+                border-radius: 50%;
+                width: 36px;
+                height: 36px;
+                line-height: 36px;
+                text-align: center;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                cursor: pointer;">
+            </div>`,
+            size: new naver.maps.Size(36, 36),
+            anchor: new naver.maps.Point(18, 18)
+        };
+
+        function makeClusterer() {
+            return new MarkerClustering({
+                minClusterSize: 2,
+                maxZoom: 15,
+                map: map,
+                markers: markers,
+                disableClickZoom: false,
+                gridSize: 120,
+                icons: [clusterStyle],
+                indexGenerator: [10, 100, 200, 500, 1000],
+                stylingFunction: function (clusterMarker, count) {
+                    clusterMarker.getElement().querySelector('div').textContent = count;
+                }
+            });
+        }
+
+        function loadMarkers() {
+            if (dataLoaded) {
+                if (clusterer) {
+                    clusterer.setMap(map);
+                } else {
+                    clusterer = makeClusterer();
+                }
+                return;
             }
-            return;
+
+            fetch('http://localhost:8081/api/clothing-bins')
+                .then(res => res.json())
+                .then(data => {
+                    markers = data.map(bin => {
+                        const marker = new naver.maps.Marker({
+                            position: new naver.maps.LatLng(bin.latitude, bin.longitude),
+                            map: null
+                        });
+
+                        const infoWindow = new naver.maps.InfoWindow({
+                            content: `
+                            <div style="padding:5px; font-size:13px;">
+                                <strong>도로명주소:</strong><br>${bin.roadAddress || '없음'}<br>
+                                <strong>지번주소:</strong><br>${bin.landLotAddress || '없음'}
+                            </div>`
+                        });
+
+                        naver.maps.Event.addListener(marker, 'click', () => {
+                            infoWindow.open(map, marker);
+                        });
+
+                        return marker;
+                    });
+
+                    clusterer = makeClusterer();
+                    dataLoaded = true;
+                })
+                .catch(err => console.error('마커 로딩 오류:', err));
         }
 
-        fetch('http://localhost:8081/api/clothing-bins')
-            .then(res => res.json())
-            .then(data => {
-                markers = data.map(bin => {
-                    const marker = new naver.maps.Marker({
-                        position: new naver.maps.LatLng(bin.latitude, bin.longitude),
-                        map: null
-                    });
-
-                    const infoWindow = new naver.maps.InfoWindow({
-                        content: `
-              <div style="padding:5px; font-size:13px;">
-                <strong>도로명주소:</strong><br>${bin.roadAddress || '없음'}<br>
-                <strong>지번주소:</strong><br>${bin.landLotAddress || '없음'}
-              </div>`
-                    });
-
-                    naver.maps.Event.addListener(marker, 'click', () => {
-                        infoWindow.open(map, marker);
-                    });
-
-                    return marker;
-                });
-
-                clusterer = makeClusterer();
-                dataLoaded = true;
-            })
-            .catch(err => console.error('마커 로딩 오류:', err));
-    }
-
-    function clearMarkers() {
-        if (clusterer) {
-            clusterer.setMap(null); // 클러스터 숨김 (삭제 아님)
+        function clearMarkers() {
+            if (clusterer) {
+                clusterer.setMap(null); // 클러스터 숨김
+            }
         }
-    }
 
-    // 줌 이벤트 감지하여 마커 표시/숨김
-    naver.maps.Event.addListener(map, 'zoom_changed', () => {
-        const zoom = map.getZoom();
-        if (zoom >= 12) {
+        // 줌 이벤트 감지하여 마커 표시/숨김
+        naver.maps.Event.addListener(map, 'zoom_changed', () => {
+            const zoom = map.getZoom();
+            if (zoom >= 12) {
+                loadMarkers();
+            } else {
+                clearMarkers();
+            }
+        });
+
+        // 최초 로딩 시 줌 조건 만족하면 로딩
+        if (map.getZoom() >= 12) {
             loadMarkers();
-        } else {
-            clearMarkers();
         }
-    });
-
-    // 최초 로딩 시 줌 조건 만족하면 로딩
-    if (map.getZoom() >= 12) {
-        loadMarkers();
     }
 </script>
 </body>
