@@ -2,7 +2,10 @@
 FROM gradle:8.4.0-jdk17 AS builder
 WORKDIR /app
 COPY . .
-RUN gradle build -x test
+
+# gradlew 실행 권한 부여 + 빌드
+RUN chmod +x ./gradlew
+RUN ./gradlew build -x test
 
 # STEP 2: 빌드 결과 JAR만 복사해서 실행
 FROM openjdk:17-jdk-slim
