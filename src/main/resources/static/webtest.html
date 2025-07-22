@@ -13,10 +13,8 @@
         document.head.appendChild(script);
     </script>
 
-    <script>
-        const NAVER_API_KEY = "44c7lycb4w";
-    </script>
-
+    <!-- 클러스터링 라이브러리 -->
+    <script src="./js/markerclustering.js"></script>
 
     <style>
         #map {
@@ -90,14 +88,7 @@
                 return;
             }
 
-            // localhost면 로컬 서버, 아니면 클라우드 서버 주소로 fetch
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiBaseUrl = isLocal ? 'http://localhost:8081' : 'https://port-0-backend-marker-mdekb2w8fbf8fa69.sel5.cloudtype.app';
-
-            fetch(`${apiBaseUrl}/api/clothing-bins`)
-
-
-            fetch(`${apiBaseUrl}/api/clothing-bins`)
+            fetch('http://localhost:8081/api/clothing-bins')
                 .then(res => res.json())
                 .then(data => {
                     markers = data.map(bin => {
