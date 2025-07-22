@@ -8,3 +8,5 @@ public class ClothAreaApplication {
     public static void main(String[] args) {
         SpringApplication.run(ClothAreaApplication.class, args);
     }
+
+}
