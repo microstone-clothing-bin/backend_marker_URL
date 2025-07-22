@@ -85,7 +85,7 @@
                 return;
             }
 
-            fetch('https://microstone-clothing-bin.github.io/backend_marker_URL/')
+            fetch('./data/clothing_bins.json')
                 .then(res => res.json())
                 .then(data => {
                     markers = data.map(bin => {
