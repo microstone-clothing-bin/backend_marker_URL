@@ -88,12 +88,8 @@
                 return;
             }
 
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiBaseUrl = isLocal ? 'http://localhost:8081' : 'https://port-0-backend-marker-mdehzyuze02fa167.sel5.cloudtype.app/webtest.html';
-
-            fetch(`${apiBaseUrl}/api/clothing-bins`)
-
-                    .then(res => res.json())
+            fetch('http://localhost:8081/api/clothing-bins')
+                .then(res => res.json())
                 .then(data => {
                     markers = data.map(bin => {
                         const marker = new naver.maps.Marker({
