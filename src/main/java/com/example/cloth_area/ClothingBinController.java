@@ -1,5 +1,5 @@
 //http://localhost:8081/api/clothing-bins -> 백엔드 웹
-//http://localhost:8081/webtest.html ->웹 테스트
+//http://localhost:8081/index.html ->웹 테스트
 
 package com.example.cloth_area;
 
