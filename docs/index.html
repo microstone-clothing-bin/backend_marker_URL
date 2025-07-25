@@ -25,6 +25,9 @@
 <div id="map"></div>
 
 <script>
+
+    let selectedInfoWindow = null;  // 현재 열린 마커를 기억
+
     function initMap() {
         const map = new naver.maps.Map("map", {
             center: new naver.maps.LatLng(37.6, 127.1),
@@ -39,7 +42,6 @@
         let markers = [];
         let clusterer = null;
         let dataLoaded = false;
-        let selectedInfoWindow = null;  // 빈 곳 클릭 시 마커 닫기
 
         const clusterStyle = {
             content: `
@@ -103,7 +105,7 @@
                                 </div>`
                         });
 
-                        // 빈 곳 클릭 시 마커 닫기
+                        // 다른 마커 클릭 시 마커 열기 + 기존 마커 닫기
                         naver.maps.Event.addListener(marker, 'click', () => {
                             if (selectedInfoWindow) {
                                 selectedInfoWindow.close();
@@ -126,6 +128,14 @@
                 clusterer.setMap(null); // 클러스터 숨김
             }
         }
+
+        // 지도 빈 공간 클릭 시 InfoWindow 닫기
+        naver.maps.Event.addListener(map, 'click', function(e) {
+            if (selectedInfoWindow) {
+                selectedInfoWindow.close();
+                selectedInfoWindow = null;
+            }
+        });
 
         // 줌 이벤트 감지하여 마커 표시/숨김
         naver.maps.Event.addListener(map, 'zoom_changed', () => {
