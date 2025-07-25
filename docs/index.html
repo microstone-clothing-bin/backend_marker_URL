@@ -129,12 +129,13 @@
             }
         }
 
-        // 지도 빈 공간 클릭 시 마커 닫기
-        naver.maps.Event.addListener(map, 'click', function(e) {
+        // 지도 빈 공간 클릭 시 마커 닫기 (분리)
+        naver.maps.Event.addListener(marker, 'click', function() {
             if (selectedInfoWindow) {
                 selectedInfoWindow.close();
-                selectedInfoWindow = null;
             }
+            infoWindow.open(map, marker);
+            selectedInfoWindow = infoWindow;
         });
 
         // 줌 이벤트 감지하여 마커 표시/숨김
