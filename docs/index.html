@@ -39,22 +39,23 @@
         let markers = [];
         let clusterer = null;
         let dataLoaded = false;
+        let selectedInfoWindow = null;  // 빈 곳 클릭 시 마커 닫기
 
         const clusterStyle = {
             content: `
-            <div style="
-                background-color: #2ecc71;
-                color: white;
-                font-size: 13px;
-                font-weight: bold;
-                border-radius: 50%;
-                width: 36px;
-                height: 36px;
-                line-height: 36px;
-                text-align: center;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                cursor: pointer;">
-            </div>`,
+                <div style="
+                    background-color: #2ecc71;
+                    color: white;
+                    font-size: 13px;
+                    font-weight: bold;
+                    border-radius: 50%;
+                    width: 36px;
+                    height: 36px;
+                    line-height: 36px;
+                    text-align: center;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    cursor: pointer;">
+                </div>`,
             size: new naver.maps.Size(36, 36),
             anchor: new naver.maps.Point(18, 18)
         };
@@ -96,14 +97,19 @@
 
                         const infoWindow = new naver.maps.InfoWindow({
                             content: `
-                            <div style="padding:5px; font-size:13px;">
-                                <strong>도로명주소:</strong><br>${bin.roadAddress || '없음'}<br>
-                                <strong>지번주소:</strong><br>${bin.landLotAddress || '없음'}
-                            </div>`
+                                <div style="padding:5px; font-size:13px;">
+                                    <strong>도로명주소:</strong><br>${bin.roadAddress || '없음'}<br>
+                                    <strong>지번주소:</strong><br>${bin.landLotAddress || '없음'}
+                                </div>`
                         });
 
+                        // 빈 곳 클릭 시 마커 닫기
                         naver.maps.Event.addListener(marker, 'click', () => {
+                            if (selectedInfoWindow) {
+                                selectedInfoWindow.close();
+                            }
                             infoWindow.open(map, marker);
+                            selectedInfoWindow = infoWindow;
                         });
 
                         return marker;
