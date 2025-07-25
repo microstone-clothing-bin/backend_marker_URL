@@ -1,11 +1,9 @@
 package com.example.cloth_area;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.*;
 
 @Entity
+@Table(name = "CLOTHING_BIN")
 public class ClothingBin {
 
     @Id
