@@ -1,6 +1,6 @@
 package com.example.cloth_area.User;
 
-import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,24 +14,23 @@ public class UserController {
         this.userService = userService;
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<String> login(@RequestBody LoginRequest request) {
+        try {
+            String result = userService.login(request.getUsername(), request.getPassword());
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        }
+    }
+
     @PostMapping("/signup")
-    public ResponseEntity<String> signup(@RequestBody @Valid SignupRequest request) {
-        userService.signup(request);
-        return ResponseEntity.ok("회원가입 성공");
-    }
-
-    @GetMapping("/check-username")
-    public ResponseEntity<Boolean> checkUsername(@RequestParam String username) {
-        return ResponseEntity.ok(!userService.existsByUsername(username));
-    }
-
-    @GetMapping("/check-nickname")
-    public ResponseEntity<Boolean> checkNickname(@RequestParam String nickname) {
-        return ResponseEntity.ok(!userService.existsByNickname(nickname));
-    }
-
-    @GetMapping("/check-email")
-    public ResponseEntity<Boolean> checkEmail(@RequestParam String email) {
-        return ResponseEntity.ok(!userService.existsByEmail(email));
+    public ResponseEntity<String> signup(@RequestBody SignupRequest request) {
+        try {
+            userService.signup(request);
+            return ResponseEntity.ok("회원가입 성공");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 }

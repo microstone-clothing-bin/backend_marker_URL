@@ -1,4 +1,4 @@
-package com.example.cloth_area;//메인 클래스
+package com.example.cloth_area; // 메인 클래스
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
