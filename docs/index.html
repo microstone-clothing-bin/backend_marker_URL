@@ -26,7 +26,7 @@
 
 <script>
 
-    let selectedInfoWindow = null;  // 현재 열린 마커를 기억
+    let selectedInfoWindow = null;  // 마커 초기화
 
     function initMap() {
         const map = new naver.maps.Map("map", {
@@ -130,19 +130,20 @@
         }
 
         // 지도 빈 공간 클릭 시 마커 닫기 (분리)
-        naver.maps.Event.addListener(marker, 'click', function() {
-            if (selectedInfoWindow) {
-                selectedInfoWindow.close();
-            }
-            infoWindow.open(map, marker);
-            selectedInfoWindow = infoWindow;
-        });
-
-        // 줌 이벤트 감지하여 마커 표시/숨김
-        document.getElementById('map').addEventListener('click', function(e) {
+        naver.maps.Event.addListener(map, 'click', function() {
             if (selectedInfoWindow) {
                 selectedInfoWindow.close();
                 selectedInfoWindow = null;
+            }
+        });
+
+        // 줌 이벤트 감지하여 마커 표시/숨김
+        naver.maps.Event.addListener(map, 'zoom_changed', () => {
+            const zoom = map.getZoom();
+            if (zoom >= 12) {
+                loadMarkers();
+            } else {
+                clearMarkers();
             }
         });
 
