@@ -8,77 +8,88 @@ import org.springframework.stereotype.Component;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 
-@Component
+@Component // 애플리케이션 실행 시 자동으로 실행되게 해주는 컴포넌트로 등록
 public class ClothingBinLoader implements CommandLineRunner {
 
     private final ClothingBinRepository repository;
 
-    // 생성자 주입: Repository를 주입받음
+    // 생성자 주입 (DB 저장을 위해 ClothingBinRepository 사용)
     public ClothingBinLoader(ClothingBinRepository repository) {
         this.repository = repository;
     }
 
-    // 트랜젝션 처리된 메서드 호출
+    // 애플리케이션 시작 시 실행되는 메서드
     @Override
     public void run(String... args) throws Exception {
-        loadBinsWithTransaction();
+        loadBinsWithTransaction(); // CSV 읽고 DB 저장
     }
 
-    @Transactional  // 트랜젝션 추가
+    // 전체 작업을 트랜잭션으로 감싸서 한번에 처리
+    @Transactional
     public void loadBinsWithTransaction() throws Exception {
         String filename = "전국_의류수거함.csv";
         System.out.println("======================================");
         System.out.println("파일 읽기 시작: " + filename);
 
-        int savedCount = 0; // 저장 성공한 개수 카운터
+        // CSV 파일을 읽어와서 객체 리스트로 변환
+        List<ClothingBin> binsToSave = loadBinsFromCsv("csv/" + filename);
 
-        // ClassPathResource로 resource/csv 폴더 아래 파일을 EUC-KR 인코딩으로 읽음
+        // DB에 한번에 저장
+        repository.saveAll(binsToSave);
+
+        System.out.println("파일 읽기 완료: " + filename + " / 저장 개수: " + binsToSave.size());
+        System.out.println("======================================");
+    }
+
+    // CSV 파일을 읽고, ClothingBin 객체 리스트로 파싱
+    private List<ClothingBin> loadBinsFromCsv(String path) throws Exception {
+        List<ClothingBin> bins = new ArrayList<>();
+
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(new ClassPathResource("csv/" + filename).getInputStream(), Charset.forName("EUC-KR")))) {
+                new InputStreamReader(new ClassPathResource(path).getInputStream(), Charset.forName("EUC-KR")))) {
 
-            String headerLine = reader.readLine(); // 첫 줄 헤더 스킵
+            String headerLine = reader.readLine(); // 첫 줄은 헤더이므로 건너뜀
             if (headerLine == null) {
-                System.out.println("파일이 비어있음: " + filename);
-                return;
+                throw new IllegalStateException("CSV 파일이 비어있습니다.");
             }
 
             String line;
-            int lineNum = 1; // 현재 읽고 있는 줄 번호 (헤더 제외하고 1부터)
-            while ((line = reader.readLine()) != null) { // 파일 끝까지 읽기
+            int lineNum = 1;
+            while ((line = reader.readLine()) != null) {
                 lineNum++;
-                String[] parts = line.split(",", -1); // , 기준으로 분리, 빈 문자열도 배열에 포함
-                if (parts.length < 4) continue; // 4개 미만이면 무시
-
                 try {
-                    String roadAddr = parts[0].trim(); // 도로명 주소
-                    String landLotAddr = parts[1].trim(); // 지번 주소
+                    String[] parts = line.split(",", -1); // 빈 값도 포함해서 split
+                    if (parts.length < 4) continue; // 필드 개수가 부족하면 건너뜀
+
+                    String roadAddr = parts[0].trim();     // 도로명 주소
+                    String landLotAddr = parts[1].trim();  // 지번 주소
                     double lat = parseDoubleSafe(parts[2].trim()); // 위도
                     double lon = parseDoubleSafe(parts[3].trim()); // 경도
 
-                    if (lat == 0 || lon == 0) continue; // 위도 또는 경도가 0이면 무시
+                    if (lat == 0 || lon == 0) continue; // 좌표가 유효하지 않으면 건너뜀
 
-                    ClothingBin bin = new ClothingBin(roadAddr, landLotAddr, lat, lon);
-                    repository.save(bin); // DB에 저장
-                    savedCount++; // 저장 카운트 증가
+                    // 파싱한 값으로 ClothingBin 객체 생성 후 리스트에 추가
+                    bins.add(new ClothingBin(roadAddr, landLotAddr, lat, lon));
+
                 } catch (Exception e) {
+                    // 개별 줄 처리 중 오류가 발생해도 전체 멈추지 않고 로그만 출력
                     System.err.println("줄 " + lineNum + " 처리 오류: " + e.getMessage());
                 }
             }
         }
 
-        System.out.println("파일: " + filename + " - 헤더명: [도로명주소, 지번주소, 위도, 경도]");
-        System.out.println("파일 읽기 완료: " + filename + " / 저장 개수: " + savedCount);
-        System.out.println("======================================");
-        System.out.println("총 저장된 의류수거함 개수: " + savedCount);
+        return bins;
     }
 
-    // 안전하게 문자열을 double로 파싱하는 메서드
+    // 문자열을 안전하게 double로 파싱 (실패하면 0 반환)
     private double parseDoubleSafe(String s) {
         try {
             return Double.parseDouble(s);
         } catch (Exception e) {
-            return 0; // 실패 시 0 반환
+            return 0;
         }
     }
 }
