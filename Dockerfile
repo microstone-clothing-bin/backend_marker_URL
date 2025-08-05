@@ -1,5 +1,5 @@
 # 1단계: 빌드
-FROM gradle:7.6-jdk17 AS builder
+FROM openjdk:21-jdk-alpine
 
 WORKDIR /app
 
