@@ -1,21 +1,33 @@
 package com.example.cloth_area;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "CLOTHING_BIN")
+@Table(name = "clothing_bin")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ClothingBin {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String roadAddress;       // 도로명주소
-    private String landLotAddress;    // 지번주소
-    private double latitude;          // 위도
-    private double longitude;         // 경도
+    @Column(name = "road_address")
+    private String roadAddress;
 
-    public ClothingBin() {}
+    @Column(name = "land_lot_address")
+    private String landLotAddress;
+
+    // DB와 타입을 맞추기 위해 columnDefinition 제거
+    @Column(name = "latitude")
+    private double latitude;
+
+    // DB와 타입을 맞추기 위해 columnDefinition 제거
+    @Column(name = "longitude")
+    private double longitude;
 
     public ClothingBin(String roadAddress, String landLotAddress, double latitude, double longitude) {
         this.roadAddress = roadAddress;
@@ -23,21 +35,4 @@ public class ClothingBin {
         this.latitude = latitude;
         this.longitude = longitude;
     }
-
-    // getter, setter 모두 추가 (간략히 생략 가능)
-    public Long getId() { return id; }
-    public String getRoadAddress() { return roadAddress; }
-    public String getLandLotAddress() { return landLotAddress; }
-    public double getLatitude() { return latitude; }
-    public double getLongitude() { return longitude; }
-
-    public void setId(Long id) { this.id = id; }
-    public void setRoadAddress(String roadAddress) { this.roadAddress = roadAddress; }
-    public void setLandLotAddress(String landLotAddress) { this.landLotAddress = landLotAddress; }
-    public void setLatitude(double latitude) { this.latitude = latitude; }
-    public void setLongitude(double longitude) { this.longitude = longitude; }
 }
-
-
-
-

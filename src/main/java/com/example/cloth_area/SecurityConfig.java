@@ -3,6 +3,8 @@ package com.example.cloth_area;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 
 // 실행 시 로그인 페이지 없애는 클래스 파일임
@@ -15,11 +17,18 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/h2-console/**").permitAll()  // H2 콘솔 허용
-                        .anyRequest().permitAll()  // 모든 요청 허용
+                        .anyRequest().permitAll()  // 그 외 모든 요청 허용
                 )
-                .csrf(csrf -> csrf.disable())  // CSRF 비활성화 (POST, PUT, DELETE 요청시 에러 방지)
-                .headers(headers -> headers.frameOptions().disable())  // iframe 허용 (H2 콘솔용)
-                .formLogin(form -> form.disable());  // 로그인 폼 비활성화 (로그인 화면 안 뜨게)
+                // csrf 비활성화
+                .csrf(AbstractHttpConfigurer::disable)
+
+                // headers 설정 수정: frameOptions를 비활성화하는 새로운 방식
+                .headers(headers -> headers
+                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
+                )
+
+                // formLogin 비활성화
+                .formLogin(AbstractHttpConfigurer::disable);
 
         return http.build();
     }

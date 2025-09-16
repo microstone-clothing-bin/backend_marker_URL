@@ -1,17 +1,16 @@
-// CSV 로직 분리, 트랜젝션 추가,(saveALL로 일괄 저장), 중복 데이터 제거, 불필요한 실행 방지, 트랜잭션 범위 축소
-
 package com.example.cloth_area;
 
-import jakarta.transaction.Transactional;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class ClothingBinLoader implements CommandLineRunner {
@@ -24,7 +23,6 @@ public class ClothingBinLoader implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // 이미 데이터가 존재하면 CSV 로드 및 저장 생략
         if (repository.count() > 0) {
             System.out.println("이미 의류 수거함 데이터가 존재합니다. CSV 로드를 생략합니다.");
             return;
@@ -32,71 +30,62 @@ public class ClothingBinLoader implements CommandLineRunner {
 
         System.out.println("======================================");
         System.out.println("CSV 파싱 시작");
-        List<ClothingBin> bins = loadBinsFromCsv("csv/전국_의류수거함.csv"); // CSV 파일 파싱
-        saveBins(bins); // DB에 저장 (중복 검사 포함)
-        System.out.println("CSV 파싱 및 저장 완료 / 저장 개수: " + bins.size());
+        List<ClothingBin> binsFromCsv = loadBinsFromCsv("csv/전국_의류수거함.csv");
+        saveNewBins(binsFromCsv);
+        System.out.println("CSV 파싱 및 저장이 완료되었습니다.");
         System.out.println("======================================");
     }
 
-    // @Transactional: 이 메서드 내부에서만 트랜잭션 처리
     @Transactional
-    public void saveBins(List<ClothingBin> bins) {
-        List<ClothingBin> filtered = new ArrayList<>();
-        for (ClothingBin bin : bins) {
-            // 위도와 경도로 중복 검사
-            if (!repository.existsByLatitudeAndLongitude(bin.getLatitude(), bin.getLongitude())) {
-                filtered.add(bin);
-            }
-        }
+    public void saveNewBins(List<ClothingBin> binsFromCsv) {
+        Set<Coordinates> existingCoordinates = repository.findAllCoordinates();
 
-        repository.saveAll(filtered); // 중복 제거된 데이터만 저장
+        List<ClothingBin> newBins = binsFromCsv.stream()
+                .filter(bin -> !existingCoordinates.contains(new Coordinates(bin.getLatitude(), bin.getLongitude())))
+                .collect(Collectors.toList());
+
+        if (!newBins.isEmpty()) {
+            repository.saveAll(newBins);
+            System.out.println("중복을 제외한 새로운 데이터 " + newBins.size() + "개가 저장되었습니다.");
+        } else {
+            System.out.println("추가할 새로운 데이터가 없습니다.");
+        }
     }
 
-    // CSV 파일을 읽어서 ClothingBin 리스트로 변환
     private List<ClothingBin> loadBinsFromCsv(String path) throws Exception {
         List<ClothingBin> bins = new ArrayList<>();
-
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(new ClassPathResource(path).getInputStream(), Charset.forName("EUC-KR")))) {
+                new InputStreamReader(new ClassPathResource(path).getInputStream(), "EUC-KR"))) {
 
-            String headerLine = reader.readLine(); // 헤더 스킵
-            if (headerLine == null) {
-                throw new IllegalStateException("CSV 파일이 비어있습니다.");
-            }
+            reader.readLine(); // 헤더 라인 스킵
 
             String line;
-            int lineNum = 1;
             while ((line = reader.readLine()) != null) {
-                lineNum++;
                 try {
-                    String[] parts = line.split(",", -1); // 공백 허용 split
+                    String[] parts = line.split(",", -1);
                     if (parts.length < 4) continue;
 
-                    String roadAddr = parts[0].trim();
-                    String landLotAddr = parts[1].trim();
+                    // CSV 파일의 3번째 컬럼(parts[2])이 위도, 4번째 컬럼(parts[3])이 경도가 맞음
                     double lat = parseDoubleSafe(parts[2].trim());
                     double lon = parseDoubleSafe(parts[3].trim());
 
-                    // 유효한 좌표가 아니면 생략
-                    if (lat == 0 || lon == 0) continue;
+                    if (lat == 0.0 || lon == 0.0) continue;
 
-                    bins.add(new ClothingBin(roadAddr, landLotAddr, lat, lon));
-
+                    bins.add(new ClothingBin(parts[0].trim(), parts[1].trim(), lat, lon));
                 } catch (Exception e) {
-                    System.err.println("줄 " + lineNum + " 처리 오류: " + e.getMessage());
+                    // 특정 라인 오류 시 로그만 남기고 계속 진행
                 }
             }
         }
-
         return bins;
     }
 
-    // 문자열을 double로 안전하게 파싱 (오류 시 0 반환)
     private double parseDoubleSafe(String s) {
         try {
+            if (s == null || s.isEmpty()) return 0.0;
             return Double.parseDouble(s);
-        } catch (Exception e) {
-            return 0;
+        } catch (NumberFormatException e) {
+            return 0.0;
         }
     }
 }
