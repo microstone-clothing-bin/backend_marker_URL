@@ -4,45 +4,53 @@
     <meta charset="utf-8">
     <title>의류 수거함 클러스터링</title>
 
-    <!-- config.js에서 API Key 불러오기 -->
-    <script src="config.js"></script>
-
-    <!-- 네이버 지도 API 직접 삽입, callback=initMap 포함 -->
     <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=44c7lycb4w&callback=initMap"></script>
 
-    <!-- 클러스터링 라이브러리, defer로 뒤에 실행 -->
     <script src="./js/markerclustering.js" defer></script>
 
     <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
         #map {
             width: 100%;
-            height: 600px;
+            height: 100%;
         }
-
         .cluster {
-            background-color: rgba(52, 152, 219, 0.85);
-            color: white;
-            font-weight: bold;
-            border-radius: 50%;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: width 0.3s, height 0.3s, font-size 0.3s;
+            font-weight: bold;
+            color: white;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
         }
     </style>
 </head>
 <body>
-<h2>의류 수거함 위치</h2>
 <div id="map"></div>
 
 <script>
-    let selectedInfoWindow = null;  // 마커 초기화
+    // 전역 변수로 선언하여 여러 함수에서 접근 가능하도록 함
+    let map;
+    let markers = [];
+    let clusterer = null;
+    let selectedInfoWindow = null;
 
+    // 네이버 지도 API가 준비되면 호출될 메인 함수
     function initMap() {
-        const map = new naver.maps.Map("map", {
+        map = new naver.maps.Map("map", {
             center: new naver.maps.LatLng(37.6, 127.1),
-            zoom: 11,
+            zoom: 13,
+            scaleControl: false,
+            logoControl: false,
+            mapDataControl: false,
+            mapTypeControl: false,
             zoomControl: true,
             zoomControlOptions: {
                 position: naver.maps.Position.TOP_LEFT,
@@ -50,173 +58,106 @@
             }
         });
 
-        let markers = [];
-        let clusterer = null;
-        let dataLoaded = false;
+        // 지도 움직임이 멈췄을 때 마커를 업데이트
+        naver.maps.Event.addListener(map, 'idle', updateMarkers);
 
-        const clusterStyle = {
-            content: `
-        <div style="
-            background-color: #2ecc71;
-            color: white;
-            font-size: 13px;
-            font-weight: bold;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            line-height: 36px;
-            text-align: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            cursor: pointer;">
-        </div>`,
-            size: new naver.maps.Size(36, 36),
-            anchor: new naver.maps.Point(18, 18)
-        };
-
-
-        function makeClusterer() {
-            return new MarkerClustering({
-                minClusterSize: 2,
-                maxZoom: 15,
-                map: map,
-                markers: markers,
-                disableClickZoom: false,
-                gridSize: 120,  // 클러스터링 영역의 그리드 크기 (픽셀 단위)
-                icons: [clusterStyle],  // 초기 클러스터 아이콘 스타일 (기본 틀)
-                indexGenerator: [10, 100, 200, 500, 1000],
-                stylingFunction: function (clusterMarker, count) {
-
-                    const size = Math.min(50, 10 + Math.sqrt(count) * 2); // 최대 50px 제한
-                    const fontSize = Math.max(12, size / 3); // 텍스트 크기 설정
-
-                    // 클러스터 내부의 div 가져오기
-                    const clusterDiv = clusterMarker.getElement().querySelector('div');
-
-                    // 클러스터에 표시할 숫자 (마커 개수)
-                    clusterDiv.textContent = count;
-
-                    // 동그라미 크기 조절
-                    clusterDiv.style.width = `${size}px`;
-                    clusterDiv.style.height = `${size}px`;
-                    clusterDiv.style.lineHeight = `${size}px`;
-
-                    // 글자 크기 설정
-                    clusterDiv.style.fontSize = `${fontSize}px`;
-
-                    // 마커 개수에 따라 배경색을 다르게 설정
-                    if (count < 10) {
-                        clusterDiv.style.backgroundColor = '#ffd5e1'; // (10개 미만)
-                    } else if (count < 20) {
-                        clusterDiv.style.backgroundColor = '#ffacc3'; // (20개 미만)
-                    } else if (count < 30) {
-                        clusterDiv.style.backgroundColor = '#ff88bc';
-                    } else if (count < 40) {
-                        clusterDiv.style.backgroundColor = '#fd6b88';
-                    } else if (count < 50) {
-                        clusterDiv.style.backgroundColor = '#c637ff';
-                    } else if (count < 60) {
-                        clusterDiv.style.backgroundColor = '#7b00ff';
-                    } else if (count < 100) {
-                        clusterDiv.style.backgroundColor = '#000bff';
-                    } else if (count < 200) {
-                        clusterDiv.style.backgroundColor = '#594dff';
-                    } else if (count < 300) {
-                        clusterDiv.style.backgroundColor = '#739bff';
-                    } else if (count < 400) {
-                        clusterDiv.style.backgroundColor = '#b2c8ff';
-                    } else if (count < 500) {
-                        clusterDiv.style.backgroundColor = '#ade4ff';
-                    } else {
-                        clusterDiv.style.backgroundColor = '#d8edff'; // (500개 초과)
-                    }
-
-                    // 기타 스타일 지정
-                    clusterDiv.style.border = '2px rgba(255, 255, 255, 0.5) solid'; // 실선 테두리
-                    clusterDiv.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.5)'; // 그림자 효과
-                    clusterDiv.style.borderRadius = '50%'; // 완전한 원 모양
-                    clusterDiv.style.color = 'white'; // 글자색
-                    clusterDiv.style.fontWeight = 'bold'; // 글자 두껍게
-                    clusterDiv.style.display = 'flex'; // 중앙 정렬을 위한 flex 사용
-                    clusterDiv.style.justifyContent = 'center'; // 수평 중앙 정렬
-                    clusterDiv.style.alignItems = 'center'; // 수직 중앙 정렬
-                    clusterDiv.style.cursor = 'pointer'; // 마우스 올리면 커서 변경
-                }
-            });
-        }
-
-        function loadMarkers() {
-            if (dataLoaded) {
-                if (clusterer) {
-                    clusterer.setMap(map);
-                } else {
-                    clusterer = makeClusterer();
-                }
-                return;
-            }
-
-            fetch('./data/clothing_bins.json')
-                .then(res => res.json())
-                .then(data => {
-                    markers = data.map(bin => {
-                        const marker = new naver.maps.Marker({
-                            position: new naver.maps.LatLng(bin.latitude, bin.longitude),
-                            map: null
-                        });
-
-                        const infoWindow = new naver.maps.InfoWindow({
-                            content: `
-                                <div style="padding:5px; font-size:13px;">
-                                    <strong>도로명주소:</strong><br>${bin.roadAddress || '없음'}<br>
-                                    <strong>지번주소:</strong><br>${bin.landLotAddress || '없음'}
-                                </div>`
-                        });
-
-                        // 다른 마커 클릭 시 마커 열기 + 기존 마커 닫기
-                        naver.maps.Event.addListener(marker, 'click', () => {
-                            if (selectedInfoWindow) {
-                                selectedInfoWindow.close();
-                            }
-                            infoWindow.open(map, marker);
-                            selectedInfoWindow = infoWindow;
-                        });
-
-                        return marker;
-                    });
-
-                    clusterer = makeClusterer();
-                    dataLoaded = true;
-                })
-                .catch(err => console.error('마커 로딩 오류:', err));
-        }
-
-        function clearMarkers() {
-            if (clusterer) {
-                clusterer.setMap(null); // 클러스터 숨김
-            }
-        }
-
-        // 지도 빈 공간 클릭 시 마커 닫기 (분리)
-        naver.maps.Event.addListener(map, 'click', function() {
+        // 지도 빈 공간 클릭 시 정보창 닫기
+        naver.maps.Event.addListener(map, 'click', () => {
             if (selectedInfoWindow) {
                 selectedInfoWindow.close();
                 selectedInfoWindow = null;
             }
         });
 
-        // 줌 이벤트 감지하여 마커 표시/숨김
-        naver.maps.Event.addListener(map, 'zoom_changed', () => {
-            const zoom = map.getZoom();
-            if (zoom >= 12) {
-                loadMarkers();
-            } else {
-                clearMarkers();
+        // 지도가 처음 로딩되었을 때 마커를 한번 불러옴
+        updateMarkers();
+    }
+
+    // 마커 클러스터 객체를 생성하는 함수
+    function makeClusterer() {
+        return new MarkerClustering({
+            minClusterSize: 2,
+            maxZoom: 16,
+            map: map,
+            markers: markers,
+            disableClickZoom: false,
+            gridSize: 120,
+            icons: [{
+                content: `<div class="cluster"></div>`,
+                size: new naver.maps.Size(40, 40),
+                anchor: new naver.maps.Point(20, 20)
+            }],
+            indexGenerator: [10, 100, 200, 500, 1000],
+            stylingFunction: function (clusterMarker, count) {
+                const clusterDiv = clusterMarker.getElement().querySelector('div');
+                const size = Math.min(60, 20 + Math.sqrt(count) * 2);
+                const fontSize = Math.max(12, size / 3.5);
+
+                clusterDiv.textContent = count;
+                clusterDiv.style.width = `${size}px`;
+                clusterDiv.style.height = `${size}px`;
+                clusterDiv.style.lineHeight = `${size}px`;
+                clusterDiv.style.fontSize = `${fontSize}px`;
+
+                if (count < 10) { clusterDiv.style.backgroundColor = '#ffd5e1'; }
+                else if (count < 20) { clusterDiv.style.backgroundColor = '#ffacc3'; }
+                else if (count < 30) { clusterDiv.style.backgroundColor = '#ff88bc'; }
+                else if (count < 40) { clusterDiv.style.backgroundColor = '#fd6b88'; }
+                else if (count < 50) { clusterDiv.style.backgroundColor = '#c637ff'; }
+                else if (count < 60) { clusterDiv.style.backgroundColor = '#7b00ff'; }
+                else if (count < 100) { clusterDiv.style.backgroundColor = '#000bff'; }
+                else if (count < 200) { clusterDiv.style.backgroundColor = '#594dff'; }
+                else if (count < 300) { clusterDiv.style.backgroundColor = '#739bff'; }
+                else if (count < 400) { clusterDiv.style.backgroundColor = '#b2c8ff'; }
+                else if (count < 500) { clusterDiv.style.backgroundColor = '#ade4ff'; }
+                else { clusterDiv.style.backgroundColor = '#d8edff'; }
             }
         });
+    }
 
-        // 최초 로딩 시 줌 조건 만족하면 로딩
-        if (map.getZoom() >= 12) {
-            loadMarkers();
-        }
+    // 보이는 지도 영역의 마커들만 서버에서 불러오는 핵심 함수
+    function updateMarkers() {
+        const bounds = map.getBounds();
+        const sw = bounds.getSW();
+        const ne = bounds.getNE();
+
+        const apiUrl = `http://localhost:8080/api/clothing-bins/in-bounds?swLat=${sw.lat()}&swLng=${sw.lng()}&neLat=${ne.lat()}&neLng=${ne.lng()}`;
+
+        fetch(apiUrl)
+            .then(res => res.ok ? res.json() : Promise.reject('서버 응답 오류'))
+            .then(data => {
+                // 기존 마커들을 지도에서 제거
+                markers.forEach(m => m.setMap(null));
+                markers = [];
+
+                // 새로 받은 데이터로 마커 생성
+                markers = data.map(bin => {
+                    const marker = new naver.maps.Marker({
+                        position: new naver.maps.LatLng(bin.latitude, bin.longitude)
+                    });
+
+                    const infoWindow = new naver.maps.InfoWindow({
+                        content: `<div style="padding:5px;font-size:12px;"><strong>${bin.roadAddress || bin.landLotAddress || '주소 정보 없음'}</strong></div>`,
+                        borderWidth: 1
+                    });
+
+                    naver.maps.Event.addListener(marker, 'click', () => {
+                        if (selectedInfoWindow) selectedInfoWindow.close();
+                        infoWindow.open(map, marker);
+                        selectedInfoWindow = infoWindow;
+                    });
+                    return marker;
+                });
+
+                // 클러스터러가 없으면 새로 만들고, 있으면 기존 마커를 지우고 새로 추가
+                if (clusterer) {
+                    clusterer.clearMarkers();
+                    clusterer.addMarkers(markers);
+                } else {
+                    clusterer = makeClusterer();
+                }
+            })
+            .catch(err => console.error('마커 로딩 중 오류 발생:', err));
     }
 </script>
 </body>
